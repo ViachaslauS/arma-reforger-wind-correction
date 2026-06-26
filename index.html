@@ -1,146 +1,61 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-<meta charset="UTF-8">
-<title>Arma Reforger SVD Wind Calculator</title>
-
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Reforger Wind Calculator</title>
 <style>
-body{
-    font-family: Arial, sans-serif;
-    background:#222;
-    color:white;
-    display:flex;
-    justify-content:center;
-    padding:40px;
+body{font-family:Arial;background:#222;color:#eee;max-width:900px;margin:auto;padding:20px}
+.box{background:#333;padding:15px;border-radius:8px}
+label{display:block;margin:8px 0}input,select{width:120px}
+.row{display:flex;gap:20px}.col{flex:1}canvas{background:#111;border:1px solid #555}
+</style></head><body><div class="box">
+<h2>Arma Reforger Wind Calculator</h2>
+<label>Distance (m) <input id=d type=number value=600></label>
+<label>Wind Speed (m/s) <input id=ws type=number value=10></label>
+<label>Target Azimuth <input id=ta type=number value=270></label>
+<label>Wind Azimuth <input id=wa type=number value=180></label>
+<label>Current ART II Zoom
+<select id=z><option>3</option><option>3.5</option><option>4</option><option>4.5</option><option>5</option><option>5.5</option><option>6</option><option>6.5</option><option>7</option><option>7.5</option><option>8</option><option>8.5</option><option>9</option></select></label>
+<button onclick="calc()">Calculate</button>
+<h3 id=r></h3><p id=pso></p><p id=art></p>
+<div class=row><div class=col><b>PSO-1</b><br><canvas id=psoC width=400 height=120></canvas></div>
+<div class=col><b>ART II</b><br><canvas id=artC width=400 height=120></canvas></div></div>
+</div><script>
+const zooms=[3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9];
+function norm(a){return ((a+540)%360)-180;}
+function pointMil(z){return 2.5*3/z;}
+function bestZoom(hold){
+ for(let z of zooms){if(Math.abs(hold)<=pointMil(z)+1e-6)return z;}
+ return 3;
 }
-
-.container{
-    width:360px;
-    background:#333;
-    padding:20px;
-    border-radius:10px;
+function drawPSO(hold){
+ let c=psoC,ctx=c.getContext("2d"),cx=200,cy=60,s=30;
+ ctx.fillStyle="#111";ctx.fillRect(0,0,c.width,c.height);
+ ctx.strokeStyle="white";
+ ctx.beginPath();ctx.moveTo(20,cy);ctx.lineTo(380,cy);ctx.stroke();
+ for(let i=-5;i<=5;i++){let x=cx+i*s;ctx.beginPath();ctx.moveTo(x,cy-8);ctx.lineTo(x,cy+8);ctx.stroke();}
+ // chevron
+ ctx.beginPath();ctx.moveTo(cx-8,cy);ctx.lineTo(cx,cy+10);ctx.lineTo(cx+8,cy);ctx.stroke();
+ let ax=cx+hold*s;ctx.strokeStyle="lime";
+ ctx.beginPath();ctx.moveTo(ax,15);ctx.lineTo(ax,45);ctx.stroke();
 }
-
-h2{
-    text-align:center;
+function drawART(hold,z){
+ let c=artC,ctx=c.getContext("2d"),cx=200,cy=60,s=30;
+ ctx.fillStyle="#111";ctx.fillRect(0,0,c.width,c.height);
+ ctx.strokeStyle="white";
+ ctx.beginPath();ctx.moveTo(20,cy);ctx.lineTo(380,cy);ctx.stroke();
+ ctx.beginPath();ctx.moveTo(cx,cy-18);ctx.lineTo(cx,cy+18);ctx.stroke();
+ let off=pointMil(z)*s;
+ for(let x of [cx-off,cx+off]){ctx.beginPath();ctx.arc(x,cy,4,0,6.28);ctx.fillStyle="white";ctx.fill();}
+ let ax=cx+hold*s;ctx.strokeStyle="lime";
+ ctx.beginPath();ctx.moveTo(ax,15);ctx.lineTo(ax,45);ctx.stroke();
 }
-
-label{
-    display:block;
-    margin-top:15px;
+function calc(){
+ let dist=+d.value,wsv=+ws.value,taz=+ta.value,waz=+wa.value,zv=+z.value;
+ let cross=wsv*Math.sin(norm(taz-waz)*Math.PI/180);
+ let hold=dist*cross/1400;
+ r.innerHTML=`Hold: <b>${Math.abs(hold).toFixed(2)} mil ${hold>=0?"RIGHT":"LEFT"}</b><br>Crosswind: ${cross.toFixed(2)} m/s`;
+ pso.innerHTML=`PSO-1: <b>${Math.abs(hold).toFixed(2)} marks ${hold>=0?"RIGHT":"LEFT"}</b>`;
+ let pm=pointMil(zv),spacing=Math.abs(hold)/pm;
+ let bz=bestZoom(hold);
+ art.innerHTML=`ART II: <b>${spacing.toFixed(2)} point spacings ${hold>=0?"RIGHT":"LEFT"}</b><br>(Current point = ${pm.toFixed(2)} mil @ ${zv.toFixed(1)}x)<br>Suggested zoom: <b>${bz.toFixed(1)}x</b>`;
+ drawPSO(hold);drawART(hold,zv);
 }
-
-input{
-    width:100%;
-    box-sizing:border-box;
-    padding:8px;
-    margin-top:5px;
-    font-size:16px;
-}
-
-button{
-    width:100%;
-    margin-top:20px;
-    padding:12px;
-    font-size:16px;
-    cursor:pointer;
-}
-
-.result{
-    margin-top:25px;
-    font-size:22px;
-    text-align:center;
-    font-weight:bold;
-}
-</style>
-</head>
-
-<body>
-
-<div class="container">
-
-<h2>SVD Wind Calculator</h2>
-
-<label>
-Distance (m)
-<input id="distance" type="number" value="600">
-</label>
-
-<label>
-Target Azimuth (°)
-<input id="targetAzimuth" type="number" value="270">
-</label>
-
-<label>
-Wind Speed (m/s)
-<input id="windSpeed" type="number" value="10">
-</label>
-
-<label>
-Wind Direction (°)
-<input id="windAzimuth" type="number" value="180">
-</label>
-
-<label>
-Coefficient
-<input id="coef" type="number" value="1400">
-</label>
-
-<button onclick="calculate()">
-Calculate
-</button>
-
-<div class="result" id="result"></div>
-
-</div>
-
-<script>
-
-function normalizeAngle(angle)
-{
-    return ((angle + 540) % 360) - 180;
-}
-
-function calculate()
-{
-    const distance = Number(document.getElementById("distance").value);
-    const windSpeed = Number(document.getElementById("windSpeed").value);
-    const targetAzimuth = Number(document.getElementById("targetAzimuth").value);
-    const windAzimuth = Number(document.getElementById("windAzimuth").value);
-
-    const delta =
-        normalizeAngle(targetAzimuth - windAzimuth);
-
-    const crossWind =
-        windSpeed * Math.sin(delta * Math.PI / 180);
-
-    const coef = Number(document.getElementById("coef").value);
-    const hold = distance * crossWind / coef;
-
-    const marks = Math.abs(hold).toFixed(1);
-
-    let direction;
-
-    if (Math.abs(hold) < 0.05)
-    {
-        direction = "no need to correct";
-    }
-    else if (hold > 0)
-    {
-        direction = `${marks} points right`;
-    }
-    else
-    {
-        direction = `${marks} points left`;
-    }
-
-    document.getElementById("result").innerHTML =
-        direction;
-}
-
-calculate();
-
-</script>
-
-</body>
-</html>
+[d,ws,ta,wa,z].forEach(e=>e.oninput=calc);calc();
+</script></body></html>
